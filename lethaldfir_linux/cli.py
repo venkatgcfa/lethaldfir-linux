@@ -109,7 +109,7 @@ def build_argparser() -> argparse.ArgumentParser:
         prog="lethaldfir-linux",
         description=(
             "LethalDFIR Linux Forensics — offline triage tool for Linux "
-            "evidence collected via Velociraptor offline collector, mounted "
+            "evidence collected via forensic collector ZIPs, mounted "
             "disk images, or extracted directory trees. Produces a JSON "
             "evidence bundle, super-timeline CSV, findings CSV, branded "
             "HTML investigation report, and (optionally) a branded XLSX "

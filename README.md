@@ -3,7 +3,7 @@
 > Offline Linux DFIR triage tool. Parses logs, configuration files,
 > persistence locations, and binary login accounting from a directory
 > tree, a single file, a mounted disk image, a tar/tar.gz archive, or a
-> Velociraptor offline collector ZIP. Produces JSON, CSVs, an HTML
+> forensic collector ZIP. Produces JSON, CSVs, an HTML
 > investigation report, and a LethalDFIR-branded XLSX workbook.
 >
 > Runs from native Linux or WSL. Windows-style paths
@@ -58,7 +58,7 @@ pip3 install --break-system-packages openpyxl
 cd lethaldfir_linux/
 pip3 install --break-system-packages -e .
 
-# Run against a Velociraptor collector dropped on Windows
+# Run against a forensic collector ZIP dropped on Windows
 lethaldfir-linux -i 'C:\Cases\IR-2026\Collection-web01.zip' -o /mnt/c/Cases/IR-2026/out
 
 # Or against a mounted folder
@@ -95,7 +95,7 @@ XLSX output requires `openpyxl`; everything else works without it.
 | ------------------------------ | -------------------------------------------- |
 | Directory tree                 | `/mnt/image/`, `./extracted/`                |
 | Single binary file             | `/var/log/wtmp`, `/var/log/lastlog`          |
-| ZIP archive                    | `Collection-web01.zip` (Velociraptor)        |
+| ZIP archive                    | `Collection-web01.zip` (forensic collector)  |
 | Tar / tar.gz archive           | `evidence.tar.gz`                            |
 | Windows-style path (WSL only)  | `'C:\Cases\evidence'`, `D:/IR/wtmp`          |
 

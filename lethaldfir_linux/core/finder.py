@@ -7,7 +7,7 @@ Locate Linux forensic artifacts inside an input source.
 Supported input layouts
 -----------------------
 1. **Mounted disk image / extracted directory tree** - root of file system.
-2. **Velociraptor offline collector ZIP** (``Collector_*.zip``) - extracted
+2. **Forensic collector ZIP** (``Collector_*.zip``) - extracted
    on demand to a working directory.
 3. **Generic directory** of collected files where Linux paths may appear
    under arbitrary prefixes (``./<host>/<original_path>``,

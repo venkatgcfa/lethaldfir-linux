@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [
     { name = "LethalDFIR" },
 ]
-keywords = ["dfir", "forensics", "linux", "incident-response", "timeline", "velociraptor"]
+keywords = ["dfir", "forensics", "linux", "incident-response", "timeline"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -41,7 +41,7 @@ lethaldfir-linux = "lethaldfir_linux.cli:main"
 
 [project.urls]
 Homepage    = "https://lethaldfir.com"
-Repository  = "https://github.com/lethaldfir/lethaldfir-linux"
+Repository  = "https://github.com/venkatgcfa/lethaldfir-linux"
 
 [tool.setuptools.packages.find]
 include = ["lethaldfir_linux*"]
