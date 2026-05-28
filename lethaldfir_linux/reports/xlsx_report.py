@@ -175,9 +175,6 @@ def _build_summary_sheet(wb, case, styles) -> None:
     ws.cell(row=3, column=1,
             value=f"Generated: {case.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
             ).font = Font(name="Arial", color=PURPLE_MID, size=10)
-    ws.cell(row=4, column=1,
-            value="https://LethalDFIR.com").font = Font(
-                name="Arial", color=PURPLE_MID, size=10, italic=True)
 
     # ---- Host info ----
     row = 6

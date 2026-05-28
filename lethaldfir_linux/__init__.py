@@ -13,7 +13,7 @@ or a forensic collector ZIP, and produces:
     auth events, file MAC times, cron entries, etc.
   * A human-readable HTML investigation report with findings.
 
-Author : LethalDFIR (https://lethaldfir.com - placeholder)
+Author : LethalDFIR
 License: MIT
 """
 

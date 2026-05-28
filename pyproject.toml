@@ -40,7 +40,6 @@ all  = ["openpyxl>=3.1.0"]
 lethaldfir-linux = "lethaldfir_linux.cli:main"
 
 [project.urls]
-Homepage    = "https://lethaldfir.com"
 Repository  = "https://github.com/venkatgcfa/lethaldfir-linux"
 
 [tool.setuptools.packages.find]

@@ -216,7 +216,3 @@ usage: lethaldfir-linux [-h] -i INPUT -o OUTPUT [--case-name CASE_NAME]
 ## License
 
 MIT. See `LICENSE`.
-
-— LethalDFIR ·
-[https://LethalDFIR.com](https://lethaldfir.com) ·
-training@lethaldfir.com

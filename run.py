@@ -2,7 +2,6 @@
 """
 ===============================================================================
  LethalDFIR Linux Forensics — Standalone Runner
- https://LethalDFIR.com | training@lethaldfir.com
 ===============================================================================
 
  Run directly without pip install:
