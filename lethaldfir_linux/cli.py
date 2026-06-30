@@ -191,6 +191,12 @@ def build_argparser() -> argparse.ArgumentParser:
         help="Reduce console output.",
     )
     p.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Print each evidence file as it is processed (with size), plus "
+             "a line-count heartbeat for large logs. Use with --jobs 1 to "
+             "diagnose a run that appears stuck.",
+    )
+    p.add_argument(
         "--version", action="version",
         version=f"{__brand__} v{__version__}",
     )
@@ -288,7 +294,7 @@ def run(argv: list[str] | None = None) -> int:
             print()
 
         case = Case(evidence_root=finder.root, case_name=case_name,
-                    output_dir=out_dir)
+                    output_dir=out_dir, verbose=args.verbose)
 
         def _run_one(parser_cls):
             """Run + finalize one parser. Returns (name, seconds, exc|None).

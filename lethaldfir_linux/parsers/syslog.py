@@ -38,6 +38,7 @@ Findings raised
 from __future__ import annotations
 
 import re
+import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -167,7 +168,16 @@ class SyslogParser(BaseParser):
         except OSError:
             pass
 
+        verbose = getattr(self.case, "verbose", False)
+        n_lines = 0
         for raw in read_lines(path):
+            # Verbose heartbeat: a climbing count means "slow but progressing";
+            # a frozen count on one file means that file is the culprit.
+            n_lines += 1
+            if verbose and n_lines % 1_000_000 == 0:
+                print(f"    [syslog] {path.name}: {n_lines:,} lines read",
+                      file=sys.stderr, flush=True)
+
             line = raw.rstrip()
             if not line:
                 continue
@@ -183,7 +193,11 @@ class SyslogParser(BaseParser):
                 # the end of the timestamp by finding the first space
                 # after the time component.
                 rest = self._strip_ts_prefix(line)
-                m = SYSLOG_BODY_RE.match(rest)
+                # SYSLOG_BODY_RE always requires a ':' ("host prog: msg").
+                # Skip it on colon-less lines — it can't match anyway, and on
+                # a very long colon-less line its backtracking is O(n^2),
+                # which can stall the parser on a pathological/huge line.
+                m = SYSLOG_BODY_RE.match(rest) if ":" in rest else None
                 if m:
                     host = m.group("host") or None
                     prog = m.group("prog") or None

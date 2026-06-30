@@ -25,10 +25,12 @@ class Case:
         evidence_root: Path,
         case_name: str = "case",
         output_dir: Path | None = None,
+        verbose: bool = False,
     ) -> None:
         self.evidence_root: Path = evidence_root
         self.case_name: str = case_name
         self.output_dir: Path | None = output_dir
+        self.verbose: bool = verbose
         self.created_at: datetime = datetime.now(timezone.utc)
 
         self.events: list[TimelineEvent] = []

@@ -10,9 +10,20 @@ recording errors.
 from __future__ import annotations
 
 import csv
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+
+def _human_size(n: int) -> str:
+    if n >= 1 << 30:
+        return f"{n / (1 << 30):.2f} GB"
+    if n >= 1 << 20:
+        return f"{n / (1 << 20):.1f} MB"
+    if n >= 1 << 10:
+        return f"{n / (1 << 10):.1f} KB"
+    return f"{n} B"
 
 from ..core.case import Case
 from ..core.event import Finding, TimelineEvent
@@ -87,6 +98,17 @@ class BaseParser:
 
     def note_file(self, path: Path) -> None:
         self._files_seen += 1
+        # Verbose: announce each file as it's picked up, with size. This is
+        # the diagnostic for "the run seems stuck" — the last line printed is
+        # the file currently being processed, and an unexpectedly huge size
+        # explains a long-running parse. Flushed so it appears in real time.
+        if getattr(self.case, "verbose", False):
+            try:
+                size = _human_size(path.stat().st_size)
+            except OSError:
+                size = "?"
+            print(f"  [{self.name}] reading {path}  ({size})",
+                  file=sys.stderr, flush=True)
 
     def note_error(self, msg: str) -> None:
         self._errors.append(msg)
