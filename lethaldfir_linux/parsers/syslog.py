@@ -44,6 +44,7 @@ from pathlib import Path
 
 from ..core.event import SEV_HIGH, SEV_MEDIUM
 from ..core.utils import (
+    SUSPICIOUS_TOKENS,
     find_suspicious_tokens,
     parse_syslog_timestamp,
     read_lines,
@@ -79,6 +80,20 @@ DISK_TOKENS   = ("ext4-fs error", "xfs error", "i/o error",
                  "remounting filesystem read-only")
 NET_CHANGE_TOKENS = ("link is not ready", "link becomes ready",
                      "carrier lost", "entered promiscuous mode")
+
+# Fast-reject gate: one flat tuple of EVERY detection token (suspicious +
+# all kernel/system categories below). The vast majority of syslog lines
+# match none of these; a single `any(t in low ...)` pass over this tuple
+# short-circuits them and lets us skip the ~10 per-category checks. It is a
+# strict superset of those categories, so detection output is unchanged: if
+# the gate misses, none of the categories could have matched either.
+# Plain `in` checks beat a compiled alternation regex here — see
+# core.utils.find_suspicious_tokens for the rationale.
+_ALL_DETECT_TOKENS = (
+    SUSPICIOUS_TOKENS + OOM_TOKENS + USB_TOKENS + SELINUX_TOKENS
+    + APPARMOR_TOKENS + CRASH_TOKENS + DHCP_TOKENS + TIME_TOKENS
+    + DISK_TOKENS + NET_CHANGE_TOKENS
+)
 
 # Map filename suffix -> (logical source label, expected family base name
 # for find_log_family). The base name is what wtmp.find_log_family
@@ -206,6 +221,14 @@ class SyslogParser(BaseParser):
             low = (msg or "").lower()
 
             # ---- detections ------------------------------------------------
+            # Fast-reject gate: only lines containing at least one detection
+            # token pay for the ~10 per-category scans below. The tuple is a
+            # strict superset of every category, so this is a performance
+            # change only — the findings produced are identical. The timeline
+            # event above is already emitted regardless.
+            if not low or not any(t in low for t in _ALL_DETECT_TOKENS):
+                continue
+
             hits = find_suspicious_tokens(low)
             if hits:
                 self.emit_finding(
