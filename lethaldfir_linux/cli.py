@@ -21,7 +21,13 @@ import re
 import sys
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+
+# Parsers run first, sequentially, in this order — they populate shared
+# Case state the others / the reports rely on (host_info, the live account
+# dataset). Every other parser is independent and is run in parallel.
+_SEQUENTIAL_FIRST = ("host_metadata", "passwd_shadow_group", "passwd_backup")
 
 from . import __version__, __brand__
 from .core import Case, EvidenceFinder
@@ -155,6 +161,11 @@ def build_argparser() -> argparse.ArgumentParser:
         help="List available parsers and exit.",
     )
     p.add_argument(
+        "--jobs", "-j", type=int, default=0, metavar="N",
+        help="Parser worker threads (default: auto from CPU count). "
+             "Use 1 for fully sequential, deterministic execution.",
+    )
+    p.add_argument(
         "--no-html", action="store_true",
         help="Skip HTML report generation.",
     )
@@ -279,29 +290,60 @@ def run(argv: list[str] | None = None) -> int:
         case = Case(evidence_root=finder.root, case_name=case_name,
                     output_dir=out_dir)
 
-        for parser_cls in parsers_to_run:
+        def _run_one(parser_cls):
+            """Run + finalize one parser. Returns (name, seconds, exc|None).
+            Safe to call from worker threads: each parser is its own object,
+            and the shared Case only takes list-appends / per-parser-keyed
+            dict writes, which are atomic under the GIL."""
             parser = parser_cls(case=case, finder=finder)
             t0 = time.time()
             try:
                 parser.run()
+                parser.finalize()
             except Exception as exc:  # noqa: BLE001
-                tb = traceback.format_exc()
-                case.record_stats(parser.name, errors=[f"FATAL: {exc}", tb])
-                if not args.quiet:
-                    print(f"  [!] {parser.name:24s}  FAILED: {exc}")
-                continue
-            parser.finalize()
-            dt = time.time() - t0
-
-            stats = case.stats.get(parser.name, {})
-            if not args.quiet:
-                print(
-                    f"  [+] {parser.name:24s}  "
-                    f"files={stats.get('files',0):<5d} "
-                    f"events={stats.get('events',0):<6d} "
-                    f"findings={stats.get('findings',0):<4d} "
-                    f"({dt:.2f}s)"
+                case.record_stats(
+                    parser.name,
+                    errors=[f"FATAL: {exc}", traceback.format_exc()],
                 )
+                return (parser.name, time.time() - t0, exc)
+            return (parser.name, time.time() - t0, None)
+
+        def _report(result):
+            name, dt, exc = result
+            if args.quiet:
+                return
+            if exc is not None:
+                print(f"  [!] {name:24s}  FAILED: {exc}  ({dt:.2f}s)")
+                return
+            stats = case.stats.get(name, {})
+            print(
+                f"  [+] {name:24s}  "
+                f"files={stats.get('files',0):<5d} "
+                f"events={stats.get('events',0):<6d} "
+                f"findings={stats.get('findings',0):<4d} "
+                f"({dt:.2f}s)"
+            )
+
+        # Phase 1: dependency-ordered parsers, sequential.
+        prelude = [p for p in parsers_to_run if p.name in _SEQUENTIAL_FIRST]
+        rest = [p for p in parsers_to_run if p.name not in _SEQUENTIAL_FIRST]
+        for parser_cls in prelude:
+            _report(_run_one(parser_cls))
+
+        # Phase 2: independent parsers in parallel (I/O- and subprocess-bound
+        # work — file reads, journalctl — overlaps well under threads). Use
+        # --jobs 1 for fully deterministic sequential execution.
+        if args.jobs and args.jobs > 0:
+            workers = args.jobs
+        else:
+            workers = min(len(rest) or 1, (os.cpu_count() or 4))
+        if workers <= 1 or len(rest) <= 1:
+            for parser_cls in rest:
+                _report(_run_one(parser_cls))
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                for fut in as_completed([ex.submit(_run_one, p) for p in rest]):
+                    _report(fut.result())
 
         # ----------------------------------------------------------------
         # Reports

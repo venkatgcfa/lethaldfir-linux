@@ -156,7 +156,7 @@ etc.) are matched correctly.
 
 ```text
 usage: lethaldfir-linux [-h] -i INPUT -o OUTPUT [--case-name CASE_NAME]
-                        [--parsers PARSERS] [--list-parsers]
+                        [--parsers PARSERS] [--list-parsers] [--jobs N]
                         [--no-html] [--no-xlsx] [--no-timeline]
                         [--no-banner] [--no-color] [--quiet] [--version]
 
@@ -166,6 +166,8 @@ usage: lethaldfir-linux [-h] -i INPUT -o OUTPUT [--case-name CASE_NAME]
   --case-name          Case name (default: derived from input filename).
   --parsers            Comma-separated subset of parsers to run.
   --list-parsers       List available parsers and exit (no -i/-o needed).
+  --jobs, -j N         Parser worker threads (default: auto from CPU count).
+                       Use 1 for fully sequential, deterministic execution.
   --no-html            Skip HTML report.
   --no-xlsx            Skip XLSX workbook.
   --no-timeline        Skip super-timeline CSV.
@@ -174,6 +176,17 @@ usage: lethaldfir-linux [-h] -i INPUT -o OUTPUT [--case-name CASE_NAME]
   --no-banner          Suppress banner.
   --version            Show version and exit.
 ```
+
+### Parallel execution
+
+Independent parsers run concurrently on a thread pool (host-metadata and
+the account parsers run first, in order, since the reports depend on
+them). This overlaps the I/O- and subprocess-bound work — reading evidence
+off a mounted image / network share / extracted archive, and the
+`journalctl` calls the `journald` parser makes — which is where offline
+triage runs actually spend their wall-clock time. Results are identical to
+a sequential run (the JSON/CSV outputs are sorted, so they're
+byte-stable). Pass `--jobs 1` for a fully sequential, deterministic run.
 
 ---
 
