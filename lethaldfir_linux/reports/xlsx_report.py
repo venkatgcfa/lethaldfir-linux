@@ -53,6 +53,11 @@ _ILLEGAL_XML_RE = re.compile(
 # lines, joined metadata) can easily exceed this, so cap defensively.
 _MAX_CELL_LEN = 32767
 
+# Cap rows written to a single sheet. The XLSX format maxes at ~1,048,576
+# rows and openpyxl is slow well before that; the full timeline always lives
+# in timeline.csv.
+_MAX_SHEET_ROWS = 200_000
+
 
 def _safe(value):
     """Sanitize a value for use in an XLSX cell.
@@ -313,7 +318,10 @@ def _build_timeline_sheet(wb, case, styles) -> None:
         ws.cell(row=1, column=i, value=h)
     _header_row(ws, 1, len(headers), styles)
 
-    events = case.sorted_events()
+    # XLSX has a hard ~1,048,576-row limit and gets very slow well before it;
+    # cap the sheet and point to timeline.csv for the full set on huge cases.
+    all_events = case.sorted_events()
+    events = all_events[:_MAX_SHEET_ROWS]
     for idx, e in enumerate(events):
         r = idx + 2
         ws.cell(row=r, column=1, value=_ts(e.timestamp))
@@ -325,6 +333,11 @@ def _build_timeline_sheet(wb, case, styles) -> None:
         is_alt = idx % 2 == 0
         for c in range(1, len(headers) + 1):
             _data_cell(ws, r, c, alt=is_alt, styles=styles)
+
+    if len(all_events) > len(events):
+        note = (f"… {len(all_events) - len(events):,} more events not shown "
+                f"(XLSX row cap). See timeline.csv for the full timeline.")
+        ws.cell(row=len(events) + 2, column=1, value=note)
 
     if events:
         ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{len(events)+1}"

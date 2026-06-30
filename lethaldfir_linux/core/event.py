@@ -86,6 +86,13 @@ class Finding:
     timestamp: datetime | None = None       # if event-bound
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # Promote naive timestamps to UTC (matching TimelineEvent). Without
+        # this, report writers call .astimezone(UTC) on a naive value, which
+        # assumes the analyst's LOCAL tz and silently shifts the time.
+        if self.timestamp is not None and self.timestamp.tzinfo is None:
+            self.timestamp = self.timestamp.replace(tzinfo=timezone.utc)
+
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         if self.timestamp is not None:

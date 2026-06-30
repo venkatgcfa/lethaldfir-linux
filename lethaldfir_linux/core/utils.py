@@ -7,31 +7,62 @@ Small helpers shared across parsers.
 
 from __future__ import annotations
 
+import bz2
 import gzip
 import hashlib
+import lzma
 import re
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Iterator
+
+
+# A single physical "line" is capped at this many characters. A crafted or
+# corrupt log with no newline for gigabytes would otherwise be read into one
+# string and OOM the whole tool; readline(limit) chunks it instead.
+_MAX_LINE = 1 << 20  # 1 MiB
+
+# Decompression errors that can surface mid-stream on a truncated/corrupt
+# rotated log. gzip/bz2 raise OSError subclasses; xz/zlib have their own.
+_READ_ERRORS = (OSError, EOFError, zlib.error, lzma.LZMAError)
 
 
 # ----------------------------------------------------------------------------
 # File reading
 # ----------------------------------------------------------------------------
 def open_text(path: Path, encoding: str = "utf-8", errors: str = "replace"):
-    """Open a text file, transparently decompressing .gz."""
-    if path.suffix.lower() == ".gz":
+    """Open a text file, transparently decompressing .gz / .bz2 / .xz."""
+    suffix = path.suffix.lower()
+    if suffix == ".gz":
         return gzip.open(path, "rt", encoding=encoding, errors=errors)
+    if suffix == ".bz2":
+        return bz2.open(path, "rt", encoding=encoding, errors=errors)
+    if suffix in (".xz", ".lzma"):
+        return lzma.open(path, "rt", encoding=encoding, errors=errors)
     return open(path, "r", encoding=encoding, errors=errors)
 
 
 def read_lines(path: Path) -> Iterator[str]:
     try:
-        with open_text(path) as f:
-            for line in f:
-                yield line.rstrip("\n")
-    except OSError:
+        f = open_text(path)
+    except _READ_ERRORS:
         return
+    try:
+        while True:
+            # readline(limit) stops at a newline OR the cap, so a pathological
+            # newline-free file is chunked instead of materialized whole.
+            line = f.readline(_MAX_LINE + 1)
+            if not line:
+                break
+            yield line.rstrip("\n")
+    except _READ_ERRORS:
+        return
+    finally:
+        try:
+            f.close()
+        except _READ_ERRORS:
+            pass
 
 
 def read_bytes_safe(path: Path) -> bytes:

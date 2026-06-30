@@ -26,6 +26,12 @@ from pathlib import Path
 from .. import __version__, __brand__
 
 
+# Max timeline rows embedded in the self-contained report.html. Beyond this
+# the report would be enormous and the in-browser filter would hang; the full
+# timeline is always written to timeline.csv regardless.
+_HTML_TIMELINE_MAX = 50_000
+
+
 # --------------------------------------------------------------------------
 # CSS
 # --------------------------------------------------------------------------
@@ -390,13 +396,23 @@ def _build_findings(case) -> str:
 
 
 def _build_timeline(case) -> str:
-    events = case.sorted_events()
-    if not events:
+    all_events = case.sorted_events()
+    if not all_events:
         return '<div class="card"><h3>Timeline</h3>'\
                '<div class="kv"><span class="k">No timeline events.</span></div></div>'
 
-    sources = sorted({e.source for e in events})
-    types = sorted({e.event_type for e in events})
+    sources = sorted({e.source for e in all_events})
+    types = sorted({e.event_type for e in all_events})
+
+    # Cap the number of rows embedded in the self-contained HTML. A
+    # multi-million-event super-timeline would otherwise make report.html
+    # huge and hang the browser (the JS materializes every row). The FULL
+    # timeline is always available in timeline.csv.
+    events = all_events
+    truncated = 0
+    if len(all_events) > _HTML_TIMELINE_MAX:
+        truncated = len(all_events) - _HTML_TIMELINE_MAX
+        events = all_events[:_HTML_TIMELINE_MAX]
 
     src_opts = "".join(f'<option value="{_esc(s)}">{_esc(s)}</option>' for s in sources)
     type_opts = "".join(f'<option value="{_esc(t)}">{_esc(t)}</option>' for t in types)
@@ -441,7 +457,15 @@ def _build_timeline(case) -> str:
         '<span class="count" id="t-info"></span>'
         '</div>'
     )
-    return controls + "".join(rows) + pager
+    note = ""
+    if truncated:
+        note = (
+            f'<div class="kv"><span class="k">Showing the first '
+            f'{_HTML_TIMELINE_MAX:,} of {len(all_events):,} events '
+            f'({truncated:,} not shown). See <code>timeline.csv</code> for '
+            f'the complete super-timeline.</span></div>'
+        )
+    return controls + note + "".join(rows) + pager
 
 
 # --------------------------------------------------------------------------

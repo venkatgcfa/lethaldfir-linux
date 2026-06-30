@@ -98,28 +98,36 @@ class EvidenceFinder:
         suffix = "".join(source.suffixes).lower()
         self._tempdir = Path(tempfile.mkdtemp(prefix="lethaldfir_"))
 
-        if zipfile.is_zipfile(source):
-            with zipfile.ZipFile(source) as zf:
-                safe, unsafe = _safe_zip_names(self._tempdir, zf)
-                if unsafe:
-                    print(
-                        f"[!] Skipped {len(unsafe)} zip member(s) with unsafe "
-                        f"paths (path traversal), e.g. {unsafe[0]!r}",
-                        file=sys.stderr,
-                    )
-                zf.extractall(self._tempdir, members=safe)
-        elif suffix.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2")):
-            with tarfile.open(source) as tf:
-                members, skipped = _safe_tar_members(self._tempdir, tf)
-                if skipped:
-                    print(
-                        f"[!] Skipped {skipped} tar member(s) with unsafe paths "
-                        f"or device/link types (path traversal)",
-                        file=sys.stderr,
-                    )
-                tf.extractall(self._tempdir, members=members)
-        else:
-            raise ValueError(f"Unsupported source type: {source}")
+        # On ANY failure (unsupported type, corrupt archive, traversal guard)
+        # __init__ raises before the context manager is entered, so clean up
+        # the just-created temp dir here instead of leaking it under /tmp.
+        try:
+            if zipfile.is_zipfile(source):
+                with zipfile.ZipFile(source) as zf:
+                    safe, unsafe = _safe_zip_names(self._tempdir, zf)
+                    if unsafe:
+                        print(
+                            f"[!] Skipped {len(unsafe)} zip member(s) with unsafe "
+                            f"paths (path traversal), e.g. {unsafe[0]!r}",
+                            file=sys.stderr,
+                        )
+                    zf.extractall(self._tempdir, members=safe)
+            elif suffix.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2")):
+                with tarfile.open(source) as tf:
+                    members, skipped = _safe_tar_members(self._tempdir, tf)
+                    if skipped:
+                        print(
+                            f"[!] Skipped {skipped} tar member(s) with unsafe paths "
+                            f"or device/link types (path traversal)",
+                            file=sys.stderr,
+                        )
+                    tf.extractall(self._tempdir, members=members)
+            else:
+                raise ValueError(f"Unsupported source type: {source}")
+        except BaseException:
+            shutil.rmtree(self._tempdir, ignore_errors=True)
+            self._tempdir = None
+            raise
 
         return self._tempdir
 
