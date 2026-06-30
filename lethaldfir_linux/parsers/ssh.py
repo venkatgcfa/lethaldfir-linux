@@ -24,7 +24,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core.event import SEV_HIGH, SEV_MEDIUM
+from ..core.event import SEV_HIGH, SEV_LOW, SEV_MEDIUM
 from ..core.utils import find_suspicious_tokens, read_lines
 from .base import BaseParser
 
@@ -124,10 +124,14 @@ class SSHParser(BaseParser):
             self.note_file(f)
             self._parse_sshd_config(f)
 
-        # also any drop-in
-        for f in self.finder.find_by_glob(["**/etc/ssh/sshd_config.d/*.conf"]):
-            self.note_file(f)
-            self._parse_sshd_config(f)
+        # also any drop-in. Match every file in sshd_config.d/, not only
+        # *.conf — sshd's own Include can pull in arbitrarily-named drop-ins,
+        # so a backdoor placed as e.g. sshd_config.d/00-backdoor (no .conf)
+        # would otherwise be missed.
+        for f in self.finder.find_by_glob(["**/etc/ssh/sshd_config.d/*"]):
+            if f.is_file():
+                self.note_file(f)
+                self._parse_sshd_config(f)
 
         # ---- authorized_keys ----
         ak_files = self.finder.find_by_glob([
@@ -211,6 +215,22 @@ class SSHParser(BaseParser):
                 ),
                 artifact=str(path),
                 timestamp=mtime,
+            )
+        elif directives.get("passwordauthentication") == "yes":
+            # Flag password auth on its own (independent of root login) —
+            # it exposes every account to online password guessing.
+            self.emit_finding(
+                severity=SEV_LOW,
+                category="hardening",
+                title="PasswordAuthentication = yes",
+                description=(
+                    "sshd permits password authentication, exposing accounts "
+                    "to online password guessing. Prefer key-only auth on "
+                    "internet-facing hosts."
+                ),
+                artifact=str(path),
+                timestamp=mtime,
+                evidence=["PasswordAuthentication yes"],
             )
 
         if directives.get("protocol") == "1":

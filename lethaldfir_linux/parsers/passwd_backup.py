@@ -130,10 +130,15 @@ class PasswdBackupParser(BaseParser):
                     )
 
         # ---- diff backup vs live for passwd & shadow ----
+        # The "live" baseline must be the real /etc/passwd|shadow, not a
+        # backup sibling — find_by_suffix also returns passwd-/passwd.bak, and
+        # if one of those became the baseline the whole diff was bogus.
         live_users   = self._parse_account_file(
-            self._first(self.finder.find_by_suffix(["/etc/passwd"])), "passwd")
+            self._first([p for p in self.finder.find_by_suffix(["/etc/passwd"])
+                         if p.name == "passwd"]), "passwd")
         live_shadow  = self._parse_account_file(
-            self._first(self.finder.find_by_suffix(["/etc/shadow"])), "shadow")
+            self._first([p for p in self.finder.find_by_suffix(["/etc/shadow"])
+                         if p.name == "shadow"]), "shadow")
 
         for backup_path in backups["passwd"]:
             backup_users = self._parse_account_file(backup_path, "passwd")

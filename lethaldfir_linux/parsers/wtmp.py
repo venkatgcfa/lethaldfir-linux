@@ -41,6 +41,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import socket
 import struct
 import subprocess
 from collections import Counter, defaultdict
@@ -97,6 +98,26 @@ TIMELINE_FIELDS = [
 
 def _decode_str(b: bytes) -> str:
     return b.split(b"\x00", 1)[0].decode("utf-8", errors="replace")
+
+
+def _decode_addr(addr: bytes) -> str:
+    """Decode a utmp ut_addr_v6 field (4x int32, network order) to an IP.
+
+    IPv4 addresses occupy the first 4 bytes with the rest zero; IPv6 uses
+    all 16. Returns "" for empty/unspecified addresses. Without this, the
+    pure-Python (no util-linux) path produced no source IPs, so btmp
+    brute-force IP correlation was impossible on those hosts.
+    """
+    if not addr or len(addr) < 4:
+        return ""
+    try:
+        if addr[4:16] == b"\x00" * 12:
+            ip = socket.inet_ntop(socket.AF_INET, addr[:4])
+        else:
+            ip = socket.inet_ntop(socket.AF_INET6, addr[:16])
+    except (OSError, ValueError):
+        return ""
+    return "" if ip in ("0.0.0.0", "::") else ip
 
 
 def _has_tool(name: str) -> bool:
@@ -373,7 +394,7 @@ class WtmpParser(BaseParser):
                 "username": _decode_str(user_b),
                 "terminal": _decode_str(line_b),
                 "remote_host": _decode_str(host_b),
-                "remote_ip": "",
+                "remote_ip": _decode_addr(_addr),
                 "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "timestamp_epoch": tv_sec,
             })

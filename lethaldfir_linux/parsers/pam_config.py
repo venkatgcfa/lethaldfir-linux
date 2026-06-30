@@ -81,6 +81,36 @@ class PamConfigParser(BaseParser):
                         evidence=[ls],
                     )
 
+                low = ls.lower()
+
+                # nullok / nullok_secure on an auth line accepts EMPTY passwords
+                if ls.startswith("auth") and "nullok" in low:
+                    self.emit_finding(
+                        severity=SEV_HIGH, category="credential_access",
+                        title=f"PAM accepts empty passwords (nullok): {f.name}",
+                        description=(
+                            "An auth line uses nullok/nullok_secure, permitting "
+                            "login to any account that has an empty password — "
+                            "the most common PAM authentication bypass."
+                        ),
+                        artifact=str(f), timestamp=ts,
+                        evidence=[ls],
+                    )
+
+                # pam_exec ... expose_authtok pipes the cleartext password out
+                if "pam_exec" in low and "expose_authtok" in low:
+                    self.emit_finding(
+                        severity=SEV_CRITICAL, category="credential_access",
+                        title=f"pam_exec expose_authtok (password theft): {f.name}",
+                        description=(
+                            "pam_exec with expose_authtok passes the user's "
+                            "cleartext password on stdin to an external program "
+                            "— a credential-theft backdoor."
+                        ),
+                        artifact=str(f), timestamp=ts,
+                        evidence=[ls],
+                    )
+
     # -- login.defs ----------------------------------------------------
     def _check_login_defs(self) -> None:
         for f in self.finder.find_by_suffix(["/etc/login.defs"]):

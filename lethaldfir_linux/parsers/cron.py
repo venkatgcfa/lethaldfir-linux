@@ -133,11 +133,21 @@ class CronParser(BaseParser):
     def _parse_line(line: str, has_user_field: bool, fixed_user: str | None):
         m = SHORTCUT_RE.match(line)
         if m:
-            user = m.group("user") if has_user_field else fixed_user
+            if has_user_field:
+                user = m.group("user")
+                command = m["cmd"].strip()
+            else:
+                # User crontabs have NO user field. SHORTCUT_RE's optional
+                # user group would otherwise swallow the first command token
+                # (e.g. "@reboot /home/bob/evil.sh x" -> cmd="x"), truncating
+                # the payload out of the event AND the suspicious-token scan.
+                # Take everything after the @schedule as the command.
+                user = fixed_user
+                command = line[m.end("sched"):].strip()
             return {
                 "schedule": m["sched"],
                 "user": user,
-                "command": m["cmd"].strip(),
+                "command": command,
             }
 
         if has_user_field:

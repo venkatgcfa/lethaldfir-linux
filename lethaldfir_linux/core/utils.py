@@ -117,12 +117,14 @@ SUSPICIOUS_TOKENS: tuple[str, ...] = (
     "pspy", "chisel ", "ligolo",
     # encoding / obfuscation
     "base64 -d", "base64 --decode", "xxd -r", "openssl enc",
+    # reverse-shell plumbing
+    "mkfifo ", "sh -i", "0<&",
     # destructive / cleanup
     " rm -rf ", "history -c", "unset histfile",
     "kill -9", "shred -",
     # privilege / persistence
-    "chmod +s", "chmod 4755", "setuid", "/etc/ld.so.preload",
-    "echo .* >> /etc/sudoers", "useradd ", "usermod -aG",
+    "chmod +s", "chmod 4755", "setuid", "/etc/ld.so.preload", "ld_preload",
+    ">> /etc/sudoers", "useradd ", "usermod -ag", "usermod -a -g",
     # crypto-mining / common malware
     "xmrig", "stratum+tcp", "monero", "minergate",
     # in-memory loaders

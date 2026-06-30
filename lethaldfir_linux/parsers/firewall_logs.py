@@ -23,6 +23,7 @@ Findings raised
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from collections import Counter
 from datetime import datetime, timezone
@@ -45,6 +46,26 @@ KERN_FW_RE = re.compile(
 
 # Common key=value fields in kernel firewall logs
 KV_RE = re.compile(r"(?P<key>SRC|DST|SPT|DPT|PROTO|IN|OUT|LEN|MAC)=(?P<val>\S+)")
+
+# Destination ports that are ordinary outbound traffic; egress to anything
+# else (especially repeated, to one public host) is the C2/exfil signal.
+_COMMON_DST_PORTS = {
+    "20", "21", "22", "25", "53", "67", "68", "80", "110", "123", "143",
+    "179", "389", "443", "465", "587", "636", "993", "995", "853",
+    "3128", "8080", "8443",
+}
+
+# Block-style firewall verdicts across ufw / firewalld / iptables.
+_BLOCK_ACTIONS = {"BLOCK", "DROP", "REJECT", "DENY", "LIMIT"}
+
+
+def _is_public_ip(ip: str) -> bool:
+    """True only for a globally-routable address (excludes RFC1918, loopback,
+    link-local, CGNAT, multicast, reserved)."""
+    try:
+        return ipaddress.ip_address(ip).is_global
+    except ValueError:
+        return False
 
 # firewalld log patterns
 FIREWALLD_RE = re.compile(
@@ -97,10 +118,50 @@ class FirewallLogsParser(BaseParser):
                     metadata={"ip": ip, "count": count},
                 )
 
+        # ---- outbound C2 / exfil aggregation ----
+        # Repeated blocked egress to ONE public host on uncommon ports is a
+        # classic blocked-beacon / exfil indicator. Thresholded to keep
+        # ordinary single blocked packets out of the findings.
+        out_counter: Counter = Counter()
+        out_ports: dict = {}
+        for o in outbound_blocks:
+            out_counter[o["dst"]] += 1
+            out_ports.setdefault(o["dst"], set()).add(o["dpt"])
+        for dst, count in out_counter.items():
+            if count >= 5:
+                ports = ",".join(sorted(out_ports[dst])[:10])
+                self.emit_finding(
+                    severity=SEV_HIGH,
+                    category="exfiltration",
+                    title=f"{count} blocked outbound connections to public IP {dst}",
+                    description=(
+                        f"The host made {count} outbound connection attempts to "
+                        f"public IP {dst} on uncommon port(s) {ports}, all "
+                        "blocked by the firewall. Repeated blocked egress to a "
+                        "single external host on non-standard ports is a common "
+                        "C2-beacon / data-exfiltration indicator."
+                    ),
+                    artifact="firewall logs",
+                    metadata={"dst": dst, "count": count, "ports": ports},
+                )
+
     # ------------------------------------------------------------------
     def _extract_kv(self, line: str) -> dict:
         """Extract key=value pairs from a firewall log line."""
         return {m.group("key"): m.group("val") for m in KV_RE.finditer(line)}
+
+    @staticmethod
+    def _record_outbound(kv: dict, action: str, outbound: list) -> None:
+        """Record a blocked OUTBOUND connection to a public IP on an uncommon
+        port (C2-beacon / exfil candidate). Outbound = OUT interface set and
+        IN empty (Netfilter sets only one for forwarded/local-out packets)."""
+        if action.upper() not in _BLOCK_ACTIONS:
+            return
+        if not kv.get("OUT") or kv.get("IN"):
+            return
+        dst, dpt = kv.get("DST", ""), kv.get("DPT", "")
+        if dst and dpt and dpt not in _COMMON_DST_PORTS and _is_public_ip(dst):
+            outbound.append({"dst": dst, "dpt": dpt})
 
     def _parse_ufw(self, path: Path, counter: Counter,
                    outbound: list) -> None:
@@ -131,6 +192,7 @@ class FirewallLogsParser(BaseParser):
                 src = kv.get("SRC", "")
                 if src:
                     counter[src] += 1
+            self._record_outbound(kv, action, outbound)
 
     def _parse_firewalld(self, path: Path, counter: Counter,
                          outbound: list) -> None:
@@ -161,6 +223,7 @@ class FirewallLogsParser(BaseParser):
                 src = kv.get("SRC", "")
                 if src:
                     counter[src] += 1
+            self._record_outbound(kv, action, outbound)
 
     def _parse_kernel_fw(self, path: Path, counter: Counter,
                          outbound: list) -> None:
@@ -196,3 +259,4 @@ class FirewallLogsParser(BaseParser):
                 src = kv.get("SRC", "")
                 if src:
                     counter[src] += 1
+            self._record_outbound(kv, action, outbound)

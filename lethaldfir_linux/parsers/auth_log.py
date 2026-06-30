@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ..core.event import SEV_CRITICAL, SEV_HIGH, SEV_LOW, SEV_MEDIUM
@@ -209,8 +209,20 @@ class AuthLogParser(BaseParser):
     def _parse_one(self, path: Path, failures: dict, accepted_index: list,
                    ssh_records: list, sudo_records: list,
                    account_records: list, sftp_records: list) -> None:
+        # RFC 3164 auth.log lines carry no year. Derive it from the file's
+        # mtime (≈ the last entry) instead of letting it default to the
+        # analysis-host's current year — otherwise rotated/old logs land on
+        # the wrong year and the success-after-failure correlation (which is
+        # time-windowed) mis-correlates. RFC 5424 lines carry an explicit
+        # year and ignore default_year.
+        try:
+            default_year = datetime.fromtimestamp(
+                path.stat().st_mtime, tz=timezone.utc).year
+        except OSError:
+            default_year = None
+
         for line in read_lines(path):
-            ts = parse_syslog_timestamp(line)
+            ts = parse_syslog_timestamp(line, default_year=default_year)
             if ts is None:
                 continue
             ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")

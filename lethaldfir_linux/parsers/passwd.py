@@ -38,10 +38,22 @@ SERVICE_ACCOUNTS = {
     "systemd-timesync", "ftp", "tcpdump",
 }
 
-INTERACTIVE_SHELLS = {
-    "/bin/bash", "/bin/sh", "/bin/zsh", "/bin/dash", "/bin/ksh",
-    "/usr/bin/bash", "/usr/bin/zsh", "/usr/bin/sh", "/usr/bin/fish",
+# Shells that mean "no interactive login". This is a DENYLIST: any shell
+# NOT listed here is treated as interactive. A previous allowlist of known
+# shells silently missed empty-password / weak-hash backdoors whose shell
+# was an unlisted-but-real shell (/usr/bin/dash, /usr/bin/tcsh) or a planted
+# custom shell. An empty shell field defaults to /bin/sh at login, so it is
+# treated as interactive too.
+NOLOGIN_SHELLS = {
+    "/usr/sbin/nologin", "/sbin/nologin", "/usr/bin/nologin",
+    "/bin/false", "/usr/bin/false", "/bin/true", "/usr/bin/true",
+    "/dev/null", "/bin/sync", "/sbin/shutdown", "/sbin/halt",
 }
+
+
+def _is_interactive_shell(shell) -> bool:
+    """True unless the shell is a known nologin/false-style shell."""
+    return (shell or "") not in NOLOGIN_SHELLS
 
 PRIVILEGED_GROUPS = {"sudo", "wheel", "admin", "root", "adm", "docker", "lxd"}
 
@@ -50,9 +62,17 @@ class PasswdParser(BaseParser):
     name = "passwd_shadow_group"
 
     def run(self) -> None:
-        passwd_files = self.finder.find_by_suffix(["/etc/passwd"])
-        shadow_files = self.finder.find_by_suffix(["/etc/shadow"])
-        group_files  = self.finder.find_by_suffix(["/etc/group"])
+        # Exact-basename filter: find_by_suffix("/etc/passwd") also matches
+        # backup/rotated siblings (passwd-, passwd.bak, passwd~, shadow-,
+        # group-). Parsing those as the LIVE account database let a stale
+        # backup row overwrite the real account (users.update keys by name)
+        # and raised CRITICALs against backups. Keep only the live files.
+        passwd_files = [p for p in self.finder.find_by_suffix(["/etc/passwd"])
+                        if p.name == "passwd"]
+        shadow_files = [p for p in self.finder.find_by_suffix(["/etc/shadow"])
+                        if p.name == "shadow"]
+        group_files  = [p for p in self.finder.find_by_suffix(["/etc/group"])
+                        if p.name == "group"]
 
         users: dict[str, dict[str, Any]] = {}
         groups: list[dict[str, Any]] = []
@@ -79,7 +99,7 @@ class PasswdParser(BaseParser):
                 u.get("name") in SERVICE_ACCOUNTS
                 or (u.get("uid") is not None and 0 < u["uid"] < 1000)
             )
-            u["has_interactive_shell"] = u.get("shell") in INTERACTIVE_SHELLS
+            u["has_interactive_shell"] = _is_interactive_shell(u.get("shell"))
 
             # Compose a one-line "anomalies" string for the report.
             anomalies = []
@@ -157,7 +177,7 @@ class PasswdParser(BaseParser):
                 )
 
             # ---- service account with shell ----
-            if name in SERVICE_ACCOUNTS and shell in INTERACTIVE_SHELLS:
+            if name in SERVICE_ACCOUNTS and _is_interactive_shell(shell):
                 self.emit_finding(
                     severity=SEV_HIGH,
                     category="account_management",
@@ -253,7 +273,7 @@ class PasswdParser(BaseParser):
 
             users[name] = user
 
-            if hashv == "" and user.get("shell") in INTERACTIVE_SHELLS:
+            if hashv == "" and _is_interactive_shell(user.get("shell")):
                 self.emit_finding(
                     severity=SEV_CRITICAL,
                     category="credential_access",
@@ -271,7 +291,7 @@ class PasswdParser(BaseParser):
 
             # ---- Weak hash on interactive account ----
             if user.get("hash_algorithm") in ("MD5 (weak)",) and \
-                    user.get("shell") in INTERACTIVE_SHELLS:
+                    _is_interactive_shell(user.get("shell")):
                 self.emit_finding(
                     severity=SEV_HIGH,
                     category="credential_access",

@@ -38,6 +38,27 @@ AUDIT_HDR_RE = re.compile(r"audit\((?P<epoch>\d+(?:\.\d+)?):(?P<serial>\d+)\)")
 TYPE_RE      = re.compile(r"type=(?P<type>\S+)")
 KV_RE        = re.compile(r'([a-zA-Z0-9_]+)=(?:"([^"]*)"|\'([^\']*)\'|(\S+))')
 
+# EXECVE arguments are either quoted literals (printable: a0="cat") or, when
+# they contain spaces/special chars, UNquoted hex (a1=2F62696E2F7368). The
+# kv dict strips quotes, so quoted-vs-hex is indistinguishable there; parse
+# from the raw line instead. Without decoding, the flagship "suspicious
+# EXECVE" detection never sees obfuscated commands (its whole purpose).
+_EXECVE_ARG_RE = re.compile(r'\ba\d+=(?:"([^"]*)"|([0-9A-Fa-f]+))')
+
+
+def _execve_args(line: str) -> list:
+    """Ordered, hex-decoded EXECVE argv parsed from a raw audit line."""
+    args: list = []
+    for quoted, hexval in _EXECVE_ARG_RE.findall(line):
+        if hexval:
+            try:
+                args.append(bytes.fromhex(hexval).decode("utf-8", "replace"))
+            except ValueError:
+                args.append(hexval)
+        else:
+            args.append(quoted)
+    return args
+
 
 class AuditParser(BaseParser):
     name = "audit"
@@ -71,7 +92,7 @@ class AuditParser(BaseParser):
             etype = tm["type"]
             kv = {k: (v1 or v2 or v3) for k, v1, v2, v3 in KV_RE.findall(line)}
 
-            description = self._describe(etype, kv)
+            description = self._describe(etype, kv, line)
             self.emit_event(
                 timestamp=ts,
                 source="audit.log",
@@ -84,14 +105,7 @@ class AuditParser(BaseParser):
 
             # Collect EXECVE for CSV
             if etype == "EXECVE":
-                args = []
-                i = 0
-                while True:
-                    key = f"a{i}"
-                    if key not in kv:
-                        break
-                    args.append(kv[key])
-                    i += 1
+                args = _execve_args(line)
                 if args:
                     execve_records.append({
                         "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
@@ -107,17 +121,10 @@ class AuditParser(BaseParser):
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _describe(etype: str, kv: dict) -> str:
+    def _describe(etype: str, kv: dict, line: str = "") -> str:
         if etype == "EXECVE":
-            args = []
-            i = 0
-            while True:
-                key = f"a{i}"
-                if key not in kv:
-                    break
-                args.append(kv[key])
-                i += 1
-            return f"EXECVE: {' '.join(args)}" if args else f"EXECVE record"
+            args = _execve_args(line)
+            return f"EXECVE: {' '.join(args)}" if args else "EXECVE record"
         if etype.startswith("USER_"):
             return (
                 f"{etype} acct={kv.get('acct','?')} res={kv.get('res','?')} "
@@ -134,14 +141,7 @@ class AuditParser(BaseParser):
         self, etype: str, kv: dict, line: str, path: Path, ts: datetime
     ) -> None:
         if etype == "EXECVE":
-            args = []
-            i = 0
-            while True:
-                key = f"a{i}"
-                if key not in kv:
-                    break
-                args.append(kv[key])
-                i += 1
+            args = _execve_args(line)
             if args:
                 cmdline = " ".join(args)
                 hits = find_suspicious_tokens(cmdline)
