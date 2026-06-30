@@ -21,15 +21,20 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core.event import SEV_HIGH, SEV_INFO, SEV_MEDIUM
+from ..core.event import SEV_HIGH
 from ..core.utils import read_lines
 from .base import BaseParser
 
 
 # dpkg.log:  2024-09-01 14:22:11 install pkg:amd64 <noversion> 1.2.3
+# Note: dpkg "status" lines (e.g. "status installed pkg:amd64 1.2.3") are
+# deliberately excluded — their second token is the dpkg STATE word, not a
+# package, so matching them bound pkg="installed"/"unpacked"/... and flooded
+# the timeline with bogus events. The install/upgrade/remove/purge action
+# lines already carry the real package + version transitions.
 DPKG_RE = re.compile(
     r"^(?P<ts>\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s+"
-    r"(?P<action>install|upgrade|remove|purge|status)\s+"
+    r"(?P<action>install|upgrade|remove|purge)\s+"
     r"(?P<pkg>\S+?)(?::\S+)?\s+"
     r"(?P<old>\S+)\s+(?P<new>\S+)?$"
 )

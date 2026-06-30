@@ -25,7 +25,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..core.event import SEV_CRITICAL, SEV_HIGH, SEV_INFO, SEV_MEDIUM
+from ..core.event import SEV_CRITICAL, SEV_HIGH, SEV_MEDIUM
 from ..core.utils import read_lines
 from .base import BaseParser
 

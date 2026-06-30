@@ -26,7 +26,6 @@ from pathlib import Path
 from . import __version__, __brand__
 from .core import Case, EvidenceFinder
 from .parsers import ALL_PARSERS, PARSERS_BY_NAME
-from .reports import write_all
 
 
 # ---------------------------------------------------------------------------

@@ -8,27 +8,20 @@ Parses binary failed-login accounting and PAM faillock data:
 * ``/var/run/faillock/*``    — pam_faillock per-user text files (RHEL 8+)
 
 The ``faillog`` file uses fixed-size records indexed by UID (similar to
-``lastlog``).  Each record is 12 bytes::
+``lastlog``).  The glibc ``struct faillog`` is::
 
     struct faillog {
-        short  fail_cnt;   /* 2 bytes: number of failures */
-        short  fail_max;   /* 2 bytes: max before lockout */
-        char   fail_line[12]; /* NOT portable — historically 8 on some */
-    };
-
-In practice, on glibc-based Linux the structure is 28 bytes::
-
-    struct faillog {
-        short  fail_cnt;       /* 2 */
-        short  fail_max;       /* 2 */
+        short  fail_cnt;       /* 2  */
+        short  fail_max;       /* 2  */
         char   fail_line[12];  /* 12 */
-        long   fail_time;      /* 4 */
-        long   fail_locktime;  /* 4 */
-        /* padding: 4 */
+        time_t fail_time;      /* 4 (32-bit) / 8 (64-bit) */
+        long   fail_locktime;  /* 4 (32-bit) / 8 (64-bit) */
     };
 
-But the exact layout varies.  We use the 12-byte "compact" format as a
-conservative heuristic and fall back if it yields implausible data.
+With 32-bit ``time_t``/``long`` the record is exactly **24 bytes** (4-byte
+aligned, no trailing padding); on a 64-bit host it is 32 bytes. We parse the
+24-byte (32-bit) layout; the record stride is derived from the struct so the
+two can never disagree.
 
 Findings raised
 ---------------
@@ -43,16 +36,23 @@ import struct
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core.event import SEV_HIGH, SEV_INFO, SEV_MEDIUM
+from ..core.event import SEV_HIGH, SEV_MEDIUM
 from ..core.utils import read_bytes_safe, read_lines
 from .base import BaseParser
 
 
-# glibc struct faillog — most common layout on modern Linux
-# short fail_cnt (2), short fail_max (2), char fail_line[12] (12),
-# long fail_time (4), long fail_locktime (4), pad (4) = 28 bytes
-FAILLOG_STRUCT = struct.Struct("<hh12sll")  # 24 bytes without padding
-FAILLOG_RECORD_SIZE = 28  # padded to 28 on most systems
+# glibc struct faillog:
+#   short fail_cnt (2), short fail_max (2), char fail_line[12] (12),
+#   time_t fail_time, long fail_locktime
+# With 32-bit time_t/long the record is exactly 24 bytes (no padding,
+# 4-byte alignment). The stride MUST equal the struct size — a previous
+# hard-coded 28 desynced every record after the first, yielding garbage
+# UIDs and timestamps.
+# Caveat: a faillog written on a 64-bit host uses 8-byte time_t/long
+# (32-byte records); that layout is not yet auto-detected here. faillog is
+# legacy (pam_faillock superseded it), so the 32-bit layout is the default.
+FAILLOG_STRUCT = struct.Struct("<hh12sll")  # 24 bytes
+FAILLOG_RECORD_SIZE = FAILLOG_STRUCT.size   # keep stride == struct size
 
 
 class FaillogParser(BaseParser):
@@ -200,6 +200,3 @@ class FaillogParser(BaseParser):
                     timestamp=ts,
                     metadata={"user": user, "count": count},
                 )
-"""
-Description: Binary faillog and pam_faillock parser for failed login accounting.
-"""

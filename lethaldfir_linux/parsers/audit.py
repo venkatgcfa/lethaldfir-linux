@@ -28,7 +28,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ..core.event import SEV_HIGH, SEV_INFO, SEV_MEDIUM
+from ..core.event import SEV_HIGH, SEV_MEDIUM
 from ..core.utils import find_suspicious_tokens, read_lines
 from .base import BaseParser
 
@@ -64,7 +64,9 @@ class AuditParser(BaseParser):
                 continue
             try:
                 ts = datetime.fromtimestamp(float(ht["epoch"]), tz=timezone.utc)
-            except (ValueError, OSError):
+            except (ValueError, OSError, OverflowError):
+                # OverflowError: a corrupt/oversized epoch (e.g. 1e20) would
+                # otherwise abort parsing for every remaining record.
                 continue
             etype = tm["type"]
             kv = {k: (v1 or v2 or v3) for k, v1, v2, v3 in KV_RE.findall(line)}

@@ -24,12 +24,10 @@ consistent across formats.
 
 from __future__ import annotations
 
-import os
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import timezone
 from pathlib import Path
-from typing import Any
 
 try:
     from openpyxl import Workbook
@@ -49,18 +47,27 @@ _ILLEGAL_XML_RE = re.compile(
     r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]'
 )
 
+# openpyxl/XLSX hard-limit a single cell to 32767 characters; exceeding it
+# raises and aborts the whole workbook save. Forensic evidence (long log
+# lines, joined metadata) can easily exceed this, so cap defensively.
+_MAX_CELL_LEN = 32767
+
 
 def _safe(value):
     """Sanitize a value for use in an XLSX cell.
 
     Strips control characters that are illegal in XML 1.0 (and therefore
-    in XLSX) to prevent openpyxl ``IllegalCharacterError``.
+    in XLSX) to prevent openpyxl ``IllegalCharacterError``, and truncates
+    over-long strings to the XLSX per-cell limit.
     """
     if value is None:
         return ""
     if not isinstance(value, str):
         return value
-    return _ILLEGAL_XML_RE.sub('', value)
+    value = _ILLEGAL_XML_RE.sub('', value)
+    if len(value) > _MAX_CELL_LEN:
+        value = value[:_MAX_CELL_LEN - 1] + "…"
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -540,7 +547,7 @@ def _build_user_accounts_sheet(wb, case, styles) -> None:
     _set_col_width(ws)
 
 
-
+def _build_tamper_sheet(wb, case, styles) -> None:
     """Surface findings tagged as tamper / anti-forensic indicators."""
     ws = wb.create_sheet("Tamper Detection")
     ws.sheet_properties.tabColor = "C62828"
