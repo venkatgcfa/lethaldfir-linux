@@ -37,6 +37,7 @@ from .nfs_exports import NfsExportsParser
 from .pam_config import PamConfigParser
 from .kernel_modules import KernelModulesParser
 from .journald import JournaldParser
+from .aide import AideParser
 
 
 # Order matters: HostMetadataParser first so case.host_info is populated
@@ -71,6 +72,7 @@ ALL_PARSERS = [
     NfsExportsParser,
     PamConfigParser,
     KernelModulesParser,
+    AideParser,
     PersistenceParser,
 ]
 
@@ -111,4 +113,5 @@ __all__ = [
     "PamConfigParser",
     "KernelModulesParser",
     "JournaldParser",
+    "AideParser",
 ]

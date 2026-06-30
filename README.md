@@ -22,7 +22,7 @@
 
 ## What it does
 
-28 stdlib-only parsers walk the evidence and emit timeline events and
+29 stdlib-only parsers walk the evidence and emit timeline events and
 severity-tagged findings into a shared `Case` container. Five report
 writers then render the case to disk:
 
@@ -105,7 +105,7 @@ etc.) are matched correctly.
 
 ---
 
-## Parsers (28)
+## Parsers (29)
 
 | Parser                  | Sources                                                                 | Sample findings                                                              |
 | ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -136,6 +136,7 @@ etc.) are matched correctly.
 | `pam_config`            | `/etc/pam.d/*`, `/etc/login.defs`, `/etc/securetty`, `/etc/selinux/config`, `/etc/apparmor.d/*`, `/etc/hosts.allow` | SELinux disabled/permissive; `pam_exec` backdoors; `pam_permit` in auth; weak password hashing |
 | `kernel_modules`        | `/etc/modules`, `/etc/modules-load.d/*`, `/etc/modprobe.d/*`            | known rootkit module names (diamorphine, reptile…); suspicious `install` directives |
 | `persistence`           | `/etc/ld.so.preload`, `/etc/profile`, `/etc/profile.d/*`, per-user RC files, `/etc/rc.local`, SUID/SGID binaries, XDG autostart, `/etc/ld.so.conf.d/*` | non-empty `ld.so.preload` (rootkit); SUID binary in user-writable dir; suspicious tokens in shell init files |
+| `aide`                  | AIDE file-integrity reports (`/var/log/aide/aide.log` + variants, rotated/compressed) | per-file change diffs mapped to MITRE ATT&CK; setuid/setgid added; content-changed-but-mtime-static (timestomp); changes to credential/persistence/binary/kernel paths |
 
 ---
 
