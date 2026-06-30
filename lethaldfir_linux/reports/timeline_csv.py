@@ -17,6 +17,8 @@ import json
 from datetime import timezone
 from pathlib import Path
 
+from ..core.utils import neutralize_formula as _nf
+
 
 FIELDS = [
     "datetime_utc",
@@ -39,7 +41,7 @@ def write_timeline_csv(case, path) -> Path:
         writer.writeheader()
         for ev in case.sorted_events():
             ts = ev.timestamp.astimezone(timezone.utc)
-            writer.writerow({
+            row = {
                 "datetime_utc": ts.isoformat(),
                 "date":         ts.strftime("%Y-%m-%d"),
                 "time":         ts.strftime("%H:%M:%S"),
@@ -50,5 +52,6 @@ def write_timeline_csv(case, path) -> Path:
                 "description":  ev.description,
                 "metadata":     json.dumps(ev.metadata, default=str) if ev.metadata else "",
                 "raw":          (ev.raw or "")[:2000],
-            })
+            }
+            writer.writerow({k: _nf(v) for k, v in row.items()})
     return path

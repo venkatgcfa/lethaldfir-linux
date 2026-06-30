@@ -38,6 +38,7 @@ except ImportError:                                                # pragma: no 
     HAS_OPENPYXL = False
 
 from .. import __brand__, __version__
+from ..core.utils import neutralize_formula
 
 
 # Regex matching XML-illegal control characters (everything except tab,
@@ -67,7 +68,9 @@ def _safe(value):
     value = _ILLEGAL_XML_RE.sub('', value)
     if len(value) > _MAX_CELL_LEN:
         value = value[:_MAX_CELL_LEN - 1] + "…"
-    return value
+    # Neutralize spreadsheet formula injection from attacker-controlled
+    # evidence (=, +, -, @, leading tab/CR). See core.utils.neutralize_formula.
+    return neutralize_formula(value)
 
 
 # ---------------------------------------------------------------------------

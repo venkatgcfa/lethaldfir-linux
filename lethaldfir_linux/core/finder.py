@@ -22,12 +22,59 @@ files and every user's history file.
 
 from __future__ import annotations
 
+import os
 import shutil
+import sys
 import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
 from typing import Iterable
+
+
+def _within(base: Path, target: Path) -> bool:
+    """True if ``target`` is ``base`` itself or nested under it."""
+    return target == base or base in target.parents
+
+
+def _safe_zip_names(dest: Path, zf: "zipfile.ZipFile") -> tuple[list[str], list[str]]:
+    """Partition zip member names into (safe, unsafe) by whether they extract
+    inside ``dest``. Defends against Zip-Slip (``../`` and absolute members)."""
+    dest_r = dest.resolve()
+    safe: list[str] = []
+    unsafe: list[str] = []
+    for name in zf.namelist():
+        # ``dest / name`` collapses an absolute member onto itself; resolve()
+        # then normalizes ``..`` so containment can be verified.
+        if _within(dest_r, (dest / name).resolve()):
+            safe.append(name)
+        else:
+            unsafe.append(name)
+    return safe, unsafe
+
+
+def _safe_tar_members(dest: Path, tf: "tarfile.TarFile") -> tuple[list, int]:
+    """Return (safe members, skipped count). Rejects tar members that would
+    extract outside ``dest`` (path traversal), symlink/hardlink members whose
+    target escapes ``dest``, and device/FIFO nodes."""
+    dest_r = dest.resolve()
+    members: list = []
+    skipped = 0
+    for m in tf.getmembers():
+        target = (dest / m.name).resolve()
+        if not _within(dest_r, target):
+            skipped += 1
+            continue
+        if m.issym() or m.islnk():
+            link = (target.parent / m.linkname).resolve()
+            if not _within(dest_r, link):
+                skipped += 1
+                continue
+        elif m.isdev():            # char/block/FIFO — never materialize
+            skipped += 1
+            continue
+        members.append(m)
+    return members, skipped
 
 
 class EvidenceFinder:
@@ -53,23 +100,51 @@ class EvidenceFinder:
 
         if zipfile.is_zipfile(source):
             with zipfile.ZipFile(source) as zf:
-                zf.extractall(self._tempdir)
+                safe, unsafe = _safe_zip_names(self._tempdir, zf)
+                if unsafe:
+                    print(
+                        f"[!] Skipped {len(unsafe)} zip member(s) with unsafe "
+                        f"paths (path traversal), e.g. {unsafe[0]!r}",
+                        file=sys.stderr,
+                    )
+                zf.extractall(self._tempdir, members=safe)
         elif suffix.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2")):
             with tarfile.open(source) as tf:
-                tf.extractall(self._tempdir)
+                members, skipped = _safe_tar_members(self._tempdir, tf)
+                if skipped:
+                    print(
+                        f"[!] Skipped {skipped} tar member(s) with unsafe paths "
+                        f"or device/link types (path traversal)",
+                        file=sys.stderr,
+                    )
+                tf.extractall(self._tempdir, members=members)
         else:
             raise ValueError(f"Unsupported source type: {source}")
 
         return self._tempdir
 
     def _build_index(self, root: Path) -> list[Path]:
+        # os.walk(followlinks=False) so symlinked directories are never
+        # descended (prevents reading the analyst host fs and symlink-loop
+        # hangs). File symlinks are indexed ONLY when their target stays
+        # within the evidence root — otherwise a collected/imaged absolute
+        # symlink (e.g. /etc/passwd) would make parsers read the host's own
+        # files instead of evidence.
+        root_r = root.resolve()
         index: list[Path] = []
-        for p in root.rglob("*"):
-            try:
-                if p.is_file() or p.is_symlink():
-                    index.append(p)
-            except OSError:
-                continue
+        for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
+            base = Path(dirpath)
+            for name in filenames:
+                p = base / name
+                try:
+                    if p.is_symlink():
+                        target = p.resolve()
+                        if _within(root_r, target) and target.is_file():
+                            index.append(p)
+                    elif p.is_file():
+                        index.append(p)
+                except OSError:
+                    continue
         return index
 
     # ------------------------------------------------------------------

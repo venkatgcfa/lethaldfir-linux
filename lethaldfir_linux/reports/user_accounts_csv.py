@@ -18,6 +18,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from ..core.utils import neutralize_formula as _nf
+
 
 FIELDS = [
     "username", "uid", "gid", "gecos", "home", "shell",
@@ -40,7 +42,7 @@ def write_user_accounts_csv(case, path) -> Path:
         w.writeheader()
         for u in sorted(users, key=lambda x: (x.get("uid") or 99999, x.get("name") or "")):
             grps = u.get("groups") or []
-            w.writerow({
+            row = {
                 "username":             u.get("name", ""),
                 "uid":                  u.get("uid", ""),
                 "gid":                  u.get("gid", ""),
@@ -62,5 +64,6 @@ def write_user_accounts_csv(case, path) -> Path:
                 "has_interactive_shell":u.get("has_interactive_shell"),
                 "anomalies":            u.get("anomalies", ""),
                 "passwd_file":          u.get("passwd_file", ""),
-            })
+            }
+            w.writerow({k: _nf(v) for k, v in row.items()})
     return path
